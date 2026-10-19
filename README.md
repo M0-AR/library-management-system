@@ -12,6 +12,8 @@
 
 *Staff demo: the dashboard a librarian sees every morning — live circulation metrics, overdue alerts, top titles, and recent checkouts. The patron demo is [further down](#-the-patron-experience-end-to-end).*
 
+**🌐 Live showcase in your browser:** [site root](https://m0-ar.github.io/library-management-system/) · [preview.html](https://m0-ar.github.io/library-management-system/preview.html) · [docs/preview.html](https://m0-ar.github.io/library-management-system/docs/preview.html) — an interactive tour of the product: screenshots, demo GIFs, a six-question quiz, and a zero-to-pro learning path. All three URLs serve the same page.
+
 **Jump to:** [30-second version](#-the-30-second-version-for-busy-people) · [Plain language](#-what-is-this-in-plain-language) · [Business case](#-why-this-exists--the-business-case) · [Feature tour](#-feature-tour) · [Patron experience](#-the-patron-experience-end-to-end) · [Screenshots](#-screenshot-gallery) · [Quick start](#-60-second-quick-start) · [What it replaces](#-what-this-replaces-the-honest-comparison) · [Repository map](#-repository-map) · [🌱 Beginner guide](#-beginner-guide--read-this-and-you-are-a-professional) · [Architecture](#-architecture) · [Data model](#-data-model-at-a-glance) · [API](#-api) · [Security](#-security) · [Testing & quality](#-testing--quality) · [Deployment](#-deployment) · [Business](#-business--licensing) · [Roadmap](#-roadmap) · [FAQ](#-faq)
 
 ---
@@ -593,7 +595,7 @@ Start with CSV import scripts (a great first contribution — the data model is 
 The billing layer is provider-agnostic with a working Paddle integration and a local stub. Stripe is a small, well-scoped addition — see the roadmap and [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 **Is there a hosted demo?**
-The quick start is the demo — one minute of Docker and you have the full seeded system with all demo logins. (Screenshots and GIFs in this README are from that exact system.)
+The browser showcase is live at **[m0-ar.github.io/library-management-system](https://m0-ar.github.io/library-management-system/)** — an interactive guided tour with screenshots, quiz, and a hands-on learning path (also reachable at [`/preview.html`](https://m0-ar.github.io/library-management-system/preview.html) and [`/docs/preview.html`](https://m0-ar.github.io/library-management-system/docs/preview.html)). For the real thing, the quick start is the demo — one minute of Docker and you have the full seeded system with all demo logins. (Screenshots and GIFs in this README are from that exact system.)
 
 ---
 
