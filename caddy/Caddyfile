@@ -1,0 +1,40 @@
+{
+	email {$ACME_EMAIL}
+
+	on_demand_tls {
+		ask http://backend:4000/api/v1/public/domains/allow
+	}
+}
+
+# Single site block on purpose: the primary app domain and white-label tenant
+# custom domains must share one server. Splitting into two blocks makes Caddy
+# drop automatic certificate management for the primary domain as soon as any
+# site on the server uses on-demand TLS. With one combined block, the primary
+# domain's certificate is issued on first handshake and every other Host is
+# validated through the on-demand "ask" endpoint above (which only allows
+# hosts that resolve to an active tenant — or the app domain/localhost).
+{$APP_DOMAIN:localhost}, https://* {
+	tls {
+		on_demand
+	}
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend:4000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

@@ -1,0 +1,22 @@
+name: library-saas
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  backend:
+    ports:
+      - "4000:4000"
+
+  frontend:
+    ports:
+      - "3000:3000"
+
+  caddy:
+    ports: !override
+      - "8080:80"

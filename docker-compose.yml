@@ -1,0 +1,155 @@
+name: library-saas
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  PORT: "4000"
+  DATABASE_URL: postgres://${APP_DB_ROLE:-app_user}:${APP_DB_PASSWORD:-change-me-app}@postgres:5432/${POSTGRES_DB:-library}
+  DATABASE_URL_ADMIN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me-postgres}@postgres:5432/${POSTGRES_DB:-library}
+  APP_DB_ROLE: ${APP_DB_ROLE:-app_user}
+  APP_DB_PASSWORD: ${APP_DB_PASSWORD:-change-me-app}
+  JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars}
+  JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+  REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
+  APP_DOMAIN: ${APP_DOMAIN:-localhost}
+  BILLING_PROVIDER: ${BILLING_PROVIDER:-stub}
+  PADDLE_ENV: ${PADDLE_ENV:-sandbox}
+  PADDLE_API_KEY: ${PADDLE_API_KEY:-}
+  PADDLE_WEBHOOK_SECRET: ${PADDLE_WEBHOOK_SECRET:-}
+  PADDLE_PRICE_STARTER: ${PADDLE_PRICE_STARTER:-}
+  PADDLE_PRICE_GROWTH: ${PADDLE_PRICE_GROWTH:-}
+  PADDLE_PRICE_ENTERPRISE: ${PADDLE_PRICE_ENTERPRISE:-}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-Library Cloud <no-reply@example.com>}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-library}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - data
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - data
+
+  migrate:
+    image: library-saas-backend
+    build:
+      context: ./backend
+    command: ["node", "dist/scripts/bootstrap.js"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - data
+
+  backend:
+    image: library-saas-backend
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/v1/health | grep -q '\"status\":\"ok\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - data
+      - edge
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Library Cloud}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      BACKEND_URL: http://backend:4000
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Library Cloud}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/healthz | grep -q ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - edge
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - edge
+
+volumes:
+  pgdata:
+  redisdata:
+  caddydata:
+  caddyconfig:
+
+networks:
+  data:
+    internal: true
+  edge:
